@@ -16,11 +16,14 @@ def extract_author_abstract_keywords(web_content : str) -> dict:
     
     result = dict()
     result["abstract"] = metadata['abstract']
-    keywords = []
-    for keywords_list in [x["kwd"] for x in metadata['keywords'] if x["type"] in ["IEEE Keywords", "Author Keywords", "INSPEC: Controlled Indexing", "INSPEC: Controlled Indexing"]]:
-        keywords.extend(keywords_list)
-    result["keywords"] = keywords
     result["authors"] = metadata["authors"]
+
+    keywords = []
+    for x in metadata['keywords']:
+        if x["type"] in ["IEEE Keywords", "Author Keywords", "INSPEC: Controlled Indexing", "INSPEC: Controlled Indexing"]:
+            keywords.append({"type" : x["type"], "kwd" : x["kwd"]})
+
+    result["keywords"] = keywords
     return result
 
 
@@ -45,11 +48,11 @@ def crawle_single_conf_through_dblp(page, dblp_conf_url : str, ieee_doi_pattern 
         print("LOG: conference have no valid IEEE paper url, %s" % page.url)
         return None
     
-    print("LOG: all DOIs are loaded, total %d" % len(links))
+    print("LOG: all paper links are loaded, total %d" % len(links))
 
     counter = 0 # current DOI's id
     for ieee_paper_link in links:
-        page.wait_for_timeout(random.randint(500, 1800))
+        page.wait_for_timeout(random.randint(300, 375))
         page.goto(ieee_paper_link)
 
         if len(re.findall("dl\.acm\.org", page.url)) > 0:
@@ -94,9 +97,9 @@ def crawle_ieee_confs_through_dblp(confs : List[Conference], dir : str)  -> List
                 continue
 
             result.append({"papers" : papers, "name" : conf.name, "year" : conf.year})
-            page.wait_for_timeout(random.randint(10000, 15000))
+            page.wait_for_timeout(random.randint(375, 625))
 
-            with open("%s/%s.%d.json" % (dir, conf.name, conf.year)) as f:
+            with open("%s/%s.%d.json" % (dir, conf.name, conf.year), "w") as f:
                 json.dump(papers, f)
         
         browser.close()

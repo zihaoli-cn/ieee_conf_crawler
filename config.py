@@ -16,6 +16,10 @@ urls = {
 year_start = 2018
 year_end = 2021
 
+url_pause = 600
+url_pause_variation = 125
+
+
 crawled_output_dir = "data/crawled"
 
 analysis_output_dir = "data/analysis"
