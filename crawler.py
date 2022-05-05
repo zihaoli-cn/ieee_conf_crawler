@@ -2,8 +2,9 @@ from playwright.sync_api import sync_playwright
 import json
 import re
 import random
+from typing import List
 
-def extract_author_abstract_keywords(web_content):
+def extract_author_abstract_keywords(web_content : str) -> dict:
     m = re.search('xplGlobal\.document\.metadata\=.*\};', web_content)
     if m == None:
         return None
@@ -23,33 +24,44 @@ def extract_author_abstract_keywords(web_content):
     return result
 
 
-def crawle_single_conf_through_dblp(page, dblp_conf_url : str):
+def crawle_single_conf_through_dblp(page, dblp_conf_url : str, ieee_doi_pattern : str) -> List[dict]:
     print("LOG : handel %s" % dblp_conf_url)
-    year = dblp_conf_url[-9:-5]
 
     papers = []
     
-    page.goto(dblp_conf_url)
+    page.goto(dblp_conf_url) # goto conference's main page in DBLP
     
-    doi_list = re.findall("<a href=\"https://doi\.org/[\.\/0-9A-Za-z]+\">", page.content()) # find all doi url
-    doi_list = [x[len('<a href="'):-2] for x in doi_list] # remove useless
+    content = page.content() # save webpage content
+
+    ieee_links = set(re.findall("https://ieeexplore\.ieee\.org/document/[0-9]+", content))
+    doi_links = set(re.findall(ieee_doi_pattern, content))
     
-    print("LOG: all DOIs are loaded, total %d" % len(doi_list))
+    links = None
+    if len(doi_links) > 0:
+        links = doi_links
+    if len(ieee_links) > 0:
+        links = ieee_links
+    if links == None:
+        print("LOG: conference have no valid IEEE paper url, %s" % page.url)
+        return None
+    
+    print("LOG: all DOIs are loaded, total %d" % len(links))
 
     counter = 0 # current DOI's id
-    for doi in doi_list:
-        if doi[-5:] == ("." + year): # this one is the IEEE's mainpage for DAC'21
-            continue
-        
+    for ieee_paper_link in links:
         page.wait_for_timeout(random.randint(500, 1800))
-        page.goto(doi)
+        page.goto(ieee_paper_link)
 
+        if len(re.findall("dl\.acm\.org", page.url)) > 0:
+            print("LOG: ACM url %s, skip it" % page.url)
+            continue
+    
         counter += 1
         print("LOG: handle %d-th DOI, title: %s" % (counter, page.title()))
 
         extracted = extract_author_abstract_keywords(page.content())
         if extracted == None:
-            print("LOG: Failed to extract, doi : %s, title : \"%s\", url : %s" % (doi, page.title(), page.url))
+            print("LOG: Failed to extract, url : %s, title : \"%s\", url : %s" % (ieee_paper_link, page.title(), page.url))
             continue
         
         extracted["ieee_url"] = page.url
@@ -58,22 +70,36 @@ def crawle_single_conf_through_dblp(page, dblp_conf_url : str):
     
     print("LOG : done with %s" % dblp_conf_url)
     
-    return {"year" : year, "papers" : papers}
+    return papers
 
 
-def crawle_ieee_confs_through_dblp(dblp_conf_urls):
+class Conference(object):
+    def __init__(self, name : str, year : int, pattern : str, dblp_url : str) -> None:
+        self.name = name
+        self.year = year
+        self.pattern = pattern
+        self.dblp_url = dblp_url
+    
+
+def crawle_ieee_confs_through_dblp(confs : List[Conference], dir : str)  -> List[List[dict]]:
     result = []
 
     with sync_playwright() as p:
         browser = p.webkit.launch()
         page = browser.new_page()
         
-        for url in dblp_conf_urls:
-            result.append(crawle_single_conf_through_dblp(page, url))
+        for conf in confs:
+            papers = crawle_single_conf_through_dblp(page, conf.dblp_url, conf.pattern)
+            if papers == None:
+                continue
+
+            result.append({"papers" : papers, "name" : conf.name, "year" : conf.year})
             page.wait_for_timeout(random.randint(10000, 15000))
+
+            with open("%s/%s.%d.json" % (dir, conf.name, conf.year)) as f:
+                json.dump(papers, f)
         
         browser.close()
-
     return result
 
 

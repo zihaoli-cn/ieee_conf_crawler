@@ -1,6 +1,20 @@
-urls = {"DAC" : ["https://dblp.org/db/conf/dac/dac2021.html", "https://dblp.org/db/conf/dac/dac2020.html", "https://dblp.org/db/conf/dac/dac2019.html", "https://dblp.org/db/conf/dac/dac2018.html"],
-        "ICCAD" : ["https://dblp.org/db/conf/iccad/iccad2021.html", "https://dblp.org/db/conf/iccad/iccad2020.html", "https://dblp.org/db/conf/iccad/iccad2019.html", "https://dblp.org/db/conf/iccad/iccad2018.html"], 
-        "DATE" : ["https://dblp.org/db/conf/date/date2021.html", "https://dblp.org/db/conf/date/date2020.html", "https://dblp.org/db/conf/date/date2019.html", "https://dblp.org/db/conf/date/date2018.html"]}
+urls = {
+    "DAC" : {
+        "pattern" : "https://doi\.org/10\.1109/DAC[\.\/0-9A-Za-z]+",
+        "dblp_prefix" : "https://dblp.org/db/conf/dac/dac"
+        },
+    "ICCAD" : {
+        "pattern" : "https://doi\.org/10\.1109/ICCAD[\.\/0-9A-Za-z]+", 
+        "dblp_prefix" : "https://dblp.org/db/conf/iccad/iccad"
+        }, 
+    "DATE" : {
+        "pattern" : "https://doi\.org/10\.23919/DATE[\.\/0-9A-Za-z]+", 
+        "dblp_prefix" : "https://dblp.org/db/conf/date/date"
+        }
+}
+
+year_start = 2018
+year_end = 2021
 
 crawled_output_dir = "data/crawled"
 
