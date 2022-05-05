@@ -3,6 +3,11 @@ import json
 import re
 import random
 from typing import List
+import threading
+
+
+
+
 
 def extract_author_abstract_keywords(web_content : str) -> dict:
     m = re.search('xplGlobal\.document\.metadata\=.*\};', web_content)
@@ -82,13 +87,13 @@ class Conference(object):
         self.year = year
         self.pattern = pattern
         self.dblp_url = dblp_url
-    
+
 
 def crawle_ieee_confs_through_dblp(confs : List[Conference], dir : str)  -> List[List[dict]]:
     result = []
 
     with sync_playwright() as p:
-        browser = p.webkit.launch()
+        browser = p.chromium.launch()
         page = browser.new_page()
         
         for conf in confs:
@@ -106,3 +111,34 @@ def crawle_ieee_confs_through_dblp(confs : List[Conference], dir : str)  -> List
     return result
 
 
+class CrawlerThread (threading.Thread):
+    def __init__(self, conf, dir):
+        threading.Thread.__init__(self)
+        self.conf = conf
+        self.dir = dir
+
+    def run(self):
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+
+            papers = crawle_single_conf_through_dblp(page, self.conf.dblp_url, self.conf.pattern)
+            if papers == None:
+                return
+
+            with open("%s/%s.%d.json" % (self.dir, self.conf.name, self.conf.year), "w") as f:
+                json.dump(papers, f)
+
+            page.close()
+
+
+def crawle_ieee_confs_through_dblp_multithread(confs : List[Conference], dir : str)  -> List[List[dict]]:
+    threads = []
+    for conf in confs:
+        threads.append(CrawlerThread(conf, dir))
+    
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    
